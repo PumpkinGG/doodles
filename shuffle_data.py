@@ -5,6 +5,8 @@ import os
 import ast
 from tqdm import tqdm
 
+NROWS = 10000
+
 class Simplified_data(object):
     def __init__(self, input_path = './data'):
         self.input_path = input_path
@@ -17,24 +19,30 @@ class Simplified_data(object):
     def list_categories(self):
         # return sorted categories
         files = os.listdir(os.path.join(self.input_path,
-                            'train_simplified_strokes'))
+                            'simplified_strokes'))
         return sorted([self.f2c(f) for f in files], key=str.lower)
 
     def read_training_csv(self, category,
                             nrows=None, usecols=None,
                             drawing_transform=False):
-        df = pd.read_csv(os.path.join(self.input_path, 'train_simplified_strokes', category + '.csv'),
+        df = pd.read_csv(os.path.join(self.input_path, 'simplified_strokes', category + '.csv'),
                         nrows=nrows, parse_dates=['timestamp'], usecols=usecols)
         if drawing_transform:
             df['drawing'] = df['drawing'].apply(ast.literal_eval)
             # ast.literal_eval("[[1, 2], [3, 4]]") = [[1, 2], [3, 4]] (str-->list)
         return df
 
-def parse_datas(num_files=100, out_dir='./data/parsed_train_data'):
+def parse_datas(num_files=100, out_dir='./data'):
     start = dt.datetime.now()
 
     if not os.path.isdir(out_dir):
         os.mkdir(out_dir)
+
+    if not os.path.isdir(os.path.join(out_dir, 'train')):
+        os.mkdir(os.path.join(out_dir, 'train'))
+
+    if not os.path.isdir(os.path.join(out_dir, 'val')):
+        os.mkdir(os.path.join(out_dir, 'val'))
 
     s_data = Simplified_data('./data')
     categories = s_data.list_categories()
@@ -42,11 +50,14 @@ def parse_datas(num_files=100, out_dir='./data/parsed_train_data'):
     print(categories[:5])
 
     for y, c in tqdm(enumerate(categories)):
-        df = s_data.read_training_csv(c, nrows=25000)
+        df = s_data.read_training_csv(c, nrows=NROWS)
         df['y'] = y
         df['cv'] = (df.key_id // 10 ** 7) % num_files
         for k in range(num_files):
-            filename = 'train_k{}.csv'.format(k)
+            if k < 80:
+                filename = 'train/train_k{}.csv'.format(k)
+            else:
+                filename = 'val/val_k{}.csv'.format(k - 80)
             filename = os.path.join(out_dir, filename)
             chunk = df[df.cv == k]
             chunk = chunk.drop(['key_id'], axis=1) # drop key_id colume
@@ -56,7 +67,10 @@ def parse_datas(num_files=100, out_dir='./data/parsed_train_data'):
                 chunk.to_csv(filename, mode='a', header=False, index=False)
 
     for k in tqdm(range(num_files)):
-        filename = 'train_k{}.csv'.format(k)
+        if k < 80:
+            filename = 'train/train_k{}.csv'.format(k)
+        else:
+            filename = 'val/val_k{}.csv'.format(k - 80)
         filename = os.path.join(out_dir, filename)
         if os.path.exists(filename):
             df = pd.read_csv(filename)

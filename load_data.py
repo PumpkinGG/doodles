@@ -8,33 +8,33 @@ import torch.utils.data as data
 import torchvision.transforms as trans
 from tqdm import tqdm
 
-DATA_DIR = './data/parsed_train_data'
-NROWS = 25000
-NCLS = 340
+TRAIN_DIR = './data/train'
+VAL_DIR = './data/val'
+NROWS = 5000 # do not greater than 10000
+NUM_CLASSES = 340
 BASE_SIZE = 256
+
 TEST = False
 
 class Strokes_Imgs_data(data.Dataset):
-    def __init__(self, data_dir = DATA_DIR,
-                 category_num = NCLS,
-                 data_num_every_category = NROWS,
+    def __init__(self, data_dir = TRAIN_DIR,
+                 example_num = int(NROWS * NUM_CLASSES * 0.8),
                  chunk_size = 1,
                  transform=None):
         # save infor to class
         self.data_dir = data_dir
         self.csv_file_list = os.listdir(data_dir)
         self.csv_file_num  = len(self.csv_file_list)
-        self.category_num = category_num
-        self.data_num_every_category = data_num_every_category
-        self.chunk_size = chunk_size
-        self.transform = transform
+        self.example_num = example_num
+        self.chunk_size  = chunk_size
+        self.transform   = transform
         self.current_file_iter = None
         self.current_file_num  = 0
 
     def __len__(self):
         # refer to shuffle_data.py, sample 25000 datas in every category
         # data.DataLoader will use this method to calculate epoch end iteration
-        return (self.data_num_every_category * self.category_num // self.chunk_size)
+        return (self.example_num // self.chunk_size)
 
     def __getitem__(self, idx):
         # first call this method
@@ -64,10 +64,10 @@ class Strokes_Imgs_data(data.Dataset):
         cls = np.array(temp['y'])
 
         sample = {'drawing': drawing,
-                   'class': cls}
+                   'y': torch.from_numpy(cls)}
 
         if self.transform:
-            sample = self.transform(sample)
+            sample['drawing'] = self.transform(sample)
 
         return sample
 
@@ -82,14 +82,14 @@ class Strokes2Imgs(object):
 
     def __call__(self, sample):
         # sample: input, raw strokes lists
-        drawing, y = sample['drawing'], sample['class']
+        drawing = sample['drawing']
         img_batch = np.zeros((drawing.shape[0], self.size, self.size), np.uint8)
 
         for idx, dr in enumerate(drawing): # imgs in one chunk
             img = np.zeros((BASE_SIZE, BASE_SIZE), np.uint8)
             for t, stroke in enumerate(dr): # strokes in one img
                 for i in range(len(stroke[0]) - 1):
-                    color = 255 - min(t, 10) * 13 if self.time_color else 255
+                    color = 255 - min(t, 15) * 15 if self.time_color else 255
                     _ = cv2.line(img, (stroke[0][i], stroke[1][i]),
                                  (stroke[0][i + 1], stroke[1][i + 1]), color, self.thickness)
             if self.size != BASE_SIZE:
@@ -103,8 +103,7 @@ class Strokes2Imgs(object):
                 cv2.destroyAllWindows()
         img_batch = (img_batch - 0) / 255 # normalization to 0 ~ 1
         img_batch = (img_batch - 0.5) / 0.5 # normalization to -1 ~ 1
-        return {'drawing': torch.from_numpy(img_batch).float().unsqueeze(1),
-                 'y': torch.from_numpy(y)}
+        return torch.from_numpy(img_batch).float().unsqueeze(1)
 
 def collate_fn(batch):
     # torch.stack changed to torch.cat
@@ -114,13 +113,13 @@ def collate_fn(batch):
     elif isinstance(batch[0], dict):
         return {key: collate_fn([d[key] for d in batch]) for key in batch[0]}
     else:
-        raise ValueError("Bad sample type of dataset.__getitem__!")
+        raise TypeError("Invalid batch type!")
 
 def main():
     # test the code, Change the global var (in line 15) TEST = True for test
     # Remember to change TEST = False when use this model !!!
     # a example of how to use this model to load data
-    stroke2img = Strokes2Imgs(size = 32)
+    stroke2img = Strokes2Imgs(size = 224)
     dataset = Strokes_Imgs_data(chunk_size = 2 , transform = stroke2img)
     dataloader = data.DataLoader(dataset, batch_size = 2,
                                     num_workers = 2, collate_fn = collate_fn)
