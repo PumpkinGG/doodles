@@ -10,10 +10,6 @@ MODEL_PATH = './checkpoint/'
 SAVE_MODEL = 'lstm_pretrained.pth'
 PRE_TRAIN_MODEL = 'lstm_pretrained.pth'
 
-def adjust_learning_rate(optimizer, decay_rate=.9):
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = param_group['lr'] * decay_rate
-
 def train_lstm(pre_trained = False):
     # define using gpu or cpu
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu:0')
@@ -46,6 +42,7 @@ def train_lstm(pre_trained = False):
     print('----------------------------------')
 
     for epoch in range(max_epoch):
+        start = dt.datetime.now()
         print('# training......................')
         transform = utils.Points2Strokes(augment = False)
         dataset = utils.simplified_data(mode = 'train', transform = transform)
@@ -54,7 +51,7 @@ def train_lstm(pre_trained = False):
         model.set_mode('train')
         i = 0
         optimizer.zero_grad()
-        for input, length, truth in dataloader:
+        for input, length, truth, _ in dataloader:
 
             input = input.to(device)
             truth = truth.to(device)
@@ -82,7 +79,7 @@ def train_lstm(pre_trained = False):
         model.set_mode('valid')
         i = 0
         average_precision = 0
-        for input, length, truth in dataloader:
+        for input, length, truth, _ in dataloader:
 
             input = input.to(device)
             truth = truth.to(device)
@@ -111,6 +108,12 @@ def train_lstm(pre_trained = False):
                         'precision': average_precision,
                         }, os.path.join(MODEL_PATH, SAVE_MODEL))
 
+        # learning rate decay
+        # for param_group in optimizer.param_groups:
+        #     param_group['lr'] = param_group['lr'] * 0.95 if param_group['lr'] * 0.95 > 0.0001 else 0.0001
+
+        end = dt.datetime.now()
+        print('# epoch {} over, average_precision is {}, cost {}'.format(epoch, average_precision, end - start))
 
 if __name__ == '__main__':
     train_lstm(pre_trained = False)

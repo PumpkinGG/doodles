@@ -7,12 +7,8 @@ import nets
 import utils
 
 MODEL_PATH = './checkpoint/'
-SAVE_MODEL = 'rnn_pretrained.pth'
-PRE_TRAIN_MODEL = 'rnn_pretrained.pth'
-
-def adjust_learning_rate(optimizer, decay_rate=.9):
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = param_group['lr'] * decay_rate
+SAVE_MODEL = 'cnn_pretrained.pth'
+PRE_TRAIN_MODEL = 'cnn_pretrained.pth'
 
 def train_cnn(pre_trained = False):
     # define using gpu or cpu
@@ -55,7 +51,7 @@ def train_cnn(pre_trained = False):
         model.train()
         i = 0
         optimizer.zero_grad()
-        for input, truth in dataloader:
+        for input, truth, _ in dataloader:
 
             input = input.to(device)
             truth = truth.to(device)
@@ -83,7 +79,7 @@ def train_cnn(pre_trained = False):
         model.eval()
         i = 0
         average_precision = 0
-        for input, truth in dataloader:
+        for input, truth, _ in dataloader:
 
             input = input.to(device)
             truth = truth.to(device)
@@ -110,6 +106,10 @@ def train_cnn(pre_trained = False):
                         'loss': loss,
                         'precision': average_precision,
                         }, os.path.join(MODEL_PATH, SAVE_MODEL))
+
+        # learning rate decay
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = param_group['lr'] * 0.95 if param_group['lr'] * 0.95 > 0.0001 else 0.0001
 
         end = dt.datetime.now()
         print('# epoch {} over, average_precision is {}, cost {}'.format(epoch, average_precision, end - start))

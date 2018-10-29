@@ -23,7 +23,7 @@ N_VAL = 2000 * NUM_CLASSES
 
 class simplified_data(data.Dataset):
     def __init__(self, mode = 'train',
-                 transform=None):
+                 transform = None):
         # save infor to class
         assert mode in ['train', 'valid']
         if mode == 'train':
@@ -62,7 +62,8 @@ class simplified_data(data.Dataset):
         y = np.array(temp['y'])
 
         sample = {'drawing': drawing,
-                   'y': y}
+                   'y': y,
+                   'cache': []}
 
         if self.transform:
             sample = self.transform(sample)
@@ -83,7 +84,7 @@ class Points2Imgs(object):
 
     def __call__(self, sample):
         # sample: input, raw points lists
-        drawing, y = sample['drawing'], sample['y']
+        drawing, y, cache = sample['drawing'], sample['y'], sample['cache']
 
         img = np.zeros((BASE_SIZE, BASE_SIZE), np.uint8)
         for t, stroke in enumerate(drawing): # strokes in one img
@@ -101,18 +102,26 @@ class Points2Imgs(object):
 
         img = (img - 0) / 255 # normalization to 0 ~ 1
         img = (img - 0.5) / 0.5 # normalization to -1 ~ 1
+
         return {'drawing': torch.from_numpy(img).float().unsqueeze(0),
-                'y': torch.from_numpy(y).long()}
+                'y': torch.from_numpy(y).long(),
+                'cache': cache}
 
 def null_imgs_collate(batch):
     # torch.stack changed to torch.cat
     drawing = [d['drawing'] for d in batch]
     truth = [d['y'] for d in batch]
+    cache = [d['cache'] for d in batch]
 
     input = torch.stack(drawing, dim = 0)
-    truth = torch.stack(truth, dim = 0)
 
-    return input, truth
+    if truth[0] is not []:
+        truth = torch.stack(truth, dim = 0)
+
+    if cache[0] is not []:
+        cache = pd.DataFrame(cache)
+
+    return input, truth, cache
 
 
 ###################################################################################
@@ -122,7 +131,7 @@ class Points2Strokes(object):
 
     def __call__(self, sample):
         # sample: input, raw points lists
-        drawing, y = sample['drawing'], sample['y']
+        drawing, y, cache = sample['drawing'], sample['y'], sample['cache']
 
         point = []
         for t,(x_,y_) in enumerate(drawing):
@@ -133,7 +142,8 @@ class Points2Strokes(object):
 
         # return {list, tensor}
         return {'drawing': stroke,
-                'y': y}
+                'y': y,
+                'cache': cache}
 
     def point_to_stroke(self, point):
         point = self.normalise_point(point)
@@ -166,6 +176,7 @@ def null_stroke_collate(batch):
     # conbine chunks
     drawing = [d['drawing'] for d in batch]
     truth = [d['y'] for d in batch]
+    cache = [d['cache'] for d in batch]
 
     batch_size = len(drawing)
     #resort
@@ -175,6 +186,7 @@ def null_stroke_collate(batch):
     input = []
     for b in argsort:
         input.append(drawing[b])
+        cache.append(cache[b])
 
     length = length[argsort]
     length_max = length.max()
@@ -185,11 +197,14 @@ def null_stroke_collate(batch):
         pack[b, 0:length[b]] = input[b]
     input = torch.from_numpy(pack).float()
 
-    if truth is not []:
+    if truth[0] is not []:
         truth = np.array(truth)
         truth = torch.from_numpy(truth).long()
 
-    return input, length, truth
+    if cache[0] is not []:
+        cache = pd.DataFrame(cache)
+
+    return input, length, truth, cache
 
 
 ###################################################################################
@@ -199,8 +214,8 @@ def run_check_stroke():
     dataloader = data.DataLoader(dataset, batch_size = 16,
                                     num_workers = 8, collate_fn = null_stroke_collate)
     iter = 0
-    for d in dataloader:
-        input, length, truth = d
+    for input, length, truth, _ in dataloader:
+
         print(input.size())
         print(length)
         print(truth)
@@ -221,8 +236,8 @@ def run_check_img():
     num_epoches = 2
     num_iter = 0
     for epoch in range(num_epoches):
-        for d in dataloader:
-            input, truth = d
+        for input, truth, _ in dataloader:
+
             num_iter += 1
             #print(epoch, num_iter)
             print(input.size())
