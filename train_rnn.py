@@ -39,11 +39,11 @@ def train_lstm(pre_trained = False):
 
     print('         loss  | prec      top      ')
     print('[ iter ]       |           1  ... k ')
-    print('----------------------------------')
+    print('------------------------------------')
 
     for epoch in range(max_epoch):
         start = dt.datetime.now()
-        print('# training......................')
+        print('# training..........................')
         transform = utils.Points2Strokes(augment = False)
         dataset = utils.simplified_data(mode = 'train', transform = transform)
         dataloader = data.DataLoader(dataset, batch_size = 128,
@@ -71,7 +71,7 @@ def train_lstm(pre_trained = False):
                 ))
             i = i+1
 
-        print('# validating......................')
+        print('# validating........................')
         transform = utils.Points2Strokes(augment = False)
         dataset = utils.simplified_data(mode = 'valid', transform = transform)
         dataloader = data.DataLoader(dataset, batch_size = 128,
@@ -89,7 +89,7 @@ def train_lstm(pre_trained = False):
 
             loss  = criterion(logit, truth)
             precision, top = nets.metric(logit, truth)
-            average_precision += precision
+            average_precision += precision.item()
 
             if i%200==0:
                 print('[%06d] %0.3f | ( %0.3f ) %0.3f  %0.3f'%(

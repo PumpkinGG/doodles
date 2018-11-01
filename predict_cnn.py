@@ -2,7 +2,9 @@ import torch
 import torch.utils.data as data
 import torch.nn.functional as F
 import pandas as pd
+import numpy as np
 import datetime as dt
+import ast
 
 import nets
 import utils
@@ -10,9 +12,10 @@ import utils
 PREDICT_MODEL = './checkpoint/cnn_pretrained.pth'
 SUB_FILE_DIR = './data/submision.csv'
 
-def test_dataset(data.Dataset):
+class test_dataset(data.Dataset):
     def __init__(self, file_dir = './data/test_simplified.csv', transform = None):
         self.data_file = pd.read_csv(file_dir)
+        self.transform = transform
 
     def __len__(self):
         return len(self.data_file)
@@ -24,7 +27,7 @@ def test_dataset(data.Dataset):
 
         sample = {'drawing': drawing,
                    'y': [],
-                   'cache': temp.drop(['countrycode', 'drawing'], axis = 1)}
+                   'cache': [temp]}
 
         if self.transform:
             sample = self.transform(sample)
@@ -55,6 +58,8 @@ def run_test():
     model.eval()
     i = 0
 
+    next(iter(dataloader))
+
     for input, _, cache in dataloader:
 
         input = input.to(device)
@@ -66,7 +71,7 @@ def run_test():
 
         predict = []
         for line in top:
-            predict.append(category[line[0]] + ' ' + category[line[1]] + ' ' + category[line[2]])
+            predict.append(category[line[0].item()] + ' ' + category[line[1].item()] + ' ' + category[line[2].item()])
 
         cache['word'] = predict
         if i == 0:
@@ -75,9 +80,13 @@ def run_test():
             cache.to_csv(SUB_FILE_DIR, mode='a', header=False, index=False)
 
         if i%500 == 499:
-            print('%6d Iteration finished.' % i + 1)
+            print('%6d Iteration finished.' % (i + 1))
 
         i += 1
 
     end = dt.datetime.now()
-    print('Finished all. Cost {}'.fomat(end - start))
+    print('Finished all. Cost {}'.format(end - start))
+
+
+if __name__ == '__main__':
+    run_test()

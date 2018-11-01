@@ -15,17 +15,17 @@ def train_cnn(pre_trained = False):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu:0')
     # define network
     model = nets.MobileNetV2(utils.NUM_CLASSES)
-    optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()),
-                            lr=0.01, momentum=0.9, weight_decay=0.0001)
-    # optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
-    #                                 lr=0.001)
+    # optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()),
+    #                         lr=0.005, momentum=0.9, weight_decay=0.0001)
+    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
+                                    lr=0.001)
     criterion = nets.softmax_cross_entropy_criterion
     max_precision = 0.
     # load model params if define pre_trained True
     if pre_trained:
         checkpoint = torch.load(os.path.join(MODEL_PATH, PRE_TRAIN_MODEL))
         model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        # optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         max_precision = checkpoint['precision']
 
     # load model and optimizer params to cuda/GPU
@@ -39,17 +39,20 @@ def train_cnn(pre_trained = False):
 
     print('         loss  | prec      top      ')
     print('[ iter ]       |           1  ... k ')
-    print('----------------------------------')
+    print('------------------------------------')
 
     for epoch in range(max_epoch):
         start = dt.datetime.now()
-        print('# training......................')
+
+        print('# training..........................')
         transform = utils.Points2Imgs(size = 224)
         dataset = utils.simplified_data(mode = 'train', transform = transform)
         dataloader = data.DataLoader(dataset, batch_size = 32,
                                         num_workers = 8, collate_fn = utils.null_imgs_collate)
         model.train()
         i = 0
+        average_precision = 0
+        average_loss = 0
         optimizer.zero_grad()
         for input, truth, _ in dataloader:
 
@@ -59,6 +62,8 @@ def train_cnn(pre_trained = False):
             logit = model(input)
             loss  = criterion(logit, truth)
             precision, top = nets.metric(logit, truth)
+            average_precision += precision.item()
+            average_loss += loss.item()
 
             loss.backward()
             # torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
@@ -71,7 +76,11 @@ def train_cnn(pre_trained = False):
                 ))
             i = i+1
 
-        print('# validating......................')
+        average_precision /= i
+        average_loss /= i
+        print('# epoch {} over, train average_loss is {}, average_precision is {}.'.format(epoch, average_loss, average_precision))
+
+        print('# validating........................')
         transform = utils.Points2Imgs(size = 224)
         dataset = utils.simplified_data(mode = 'valid', transform = transform)
         dataloader = data.DataLoader(dataset, batch_size = 32,
@@ -79,6 +88,7 @@ def train_cnn(pre_trained = False):
         model.eval()
         i = 0
         average_precision = 0
+        average_loss = 0
         for input, truth, _ in dataloader:
 
             input = input.to(device)
@@ -89,14 +99,18 @@ def train_cnn(pre_trained = False):
 
             loss  = criterion(logit, truth)
             precision, top = nets.metric(logit, truth)
+            average_precision += precision.item()
+            average_loss += loss.item()
 
             if i%200==0:
                 print('[%06d] %0.3f | ( %0.3f ) %0.3f  %0.3f'%(
-                    i, loss.item(),precision.item(), top[0].item(),top[-1].item(),
+                    i, loss.item(), precision.item(), top[0].item(),top[-1].item(),
                 ))
             i = i+1
 
         average_precision /= i
+        average_loss /= i
+
         if average_precision > max_precision:
             max_precision = average_precision
             torch.save({
@@ -109,10 +123,10 @@ def train_cnn(pre_trained = False):
 
         # learning rate decay
         for param_group in optimizer.param_groups:
-            param_group['lr'] = param_group['lr'] * 0.95 if param_group['lr'] * 0.95 > 0.0001 else 0.0001
+            param_group['lr'] = param_group['lr'] * 0.9 if param_group['lr'] * 0.9 > 0.0001 else 0.0001
 
         end = dt.datetime.now()
-        print('# epoch {} over, average_precision is {}, cost {}'.format(epoch, average_precision, end - start))
+        print('# epoch {} over, train average_loss is {}, average_precision is {}, cost {}'.format(epoch, average_loss, average_precision, end - start))
 
 if __name__ == '__main__':
     train_cnn(pre_trained = False)

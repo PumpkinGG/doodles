@@ -18,7 +18,7 @@ MIN_NUM_PER_FILE = 100000 # 101261
 N_TRAIN = 10000 * NUM_CLASSES
 # Total val example num is: 2039878
 # same as above
-N_VAL = 2000 * NUM_CLASSES
+N_VAL = 500 * NUM_CLASSES
 
 
 class simplified_data(data.Dataset):
@@ -62,7 +62,7 @@ class simplified_data(data.Dataset):
         y = np.array(temp['y'])
 
         sample = {'drawing': drawing,
-                   'y': y,
+                   'y': [y],
                    'cache': []}
 
         if self.transform:
@@ -104,22 +104,25 @@ class Points2Imgs(object):
         img = (img - 0.5) / 0.5 # normalization to -1 ~ 1
 
         return {'drawing': torch.from_numpy(img).float().unsqueeze(0),
-                'y': torch.from_numpy(y).long(),
+                'y': y,
                 'cache': cache}
 
 def null_imgs_collate(batch):
     # torch.stack changed to torch.cat
     drawing = [d['drawing'] for d in batch]
-    truth = [d['y'] for d in batch]
-    cache = [d['cache'] for d in batch]
-
+    truth = []
+    cache = []
     input = torch.stack(drawing, dim = 0)
 
-    if truth[0] is not []:
-        truth = torch.stack(truth, dim = 0)
+    if batch[0]['y'] != []:
+        truth = [d['y'][0] for d in batch]
+        truth = np.stack(truth, axis = 0)
+        truth = torch.from_numpy(truth)
 
-    if cache[0] is not []:
+    if batch[0]['cache'] != []:
+        cache = [d['cache'][0] for d in batch]
         cache = pd.DataFrame(cache)
+        cache = cache.drop(['countrycode', 'drawing'], axis = 1)
 
     return input, truth, cache
 
@@ -140,7 +143,7 @@ class Points2Strokes(object):
 
         stroke = self.point_to_stroke(point)
 
-        # return {list, tensor}
+        # return {list, np.array}
         return {'drawing': stroke,
                 'y': y,
                 'cache': cache}
@@ -148,11 +151,13 @@ class Points2Strokes(object):
     def point_to_stroke(self, point):
         point = self.normalise_point(point)
         num_point = len(point)
-        #stroke =[dx,dy,dt]
+        #stroke =[x,y,dt]
         #--------
         stroke = np.zeros((num_point,3),np.float32)
-        stroke[0] = [0,0,1]
-        stroke[1:] = point[1:] - point[:-1]
+        stroke[:,2] = [1] + np.diff(stroke[:,2]).tolist()
+        stroke[:,2] += 1
+        # stroke[0] = [0,0,1]
+        # stroke[1:] = point[1:] - point[:-1]
 
         return stroke
 
@@ -175,8 +180,8 @@ class Points2Strokes(object):
 def null_stroke_collate(batch):
     # conbine chunks
     drawing = [d['drawing'] for d in batch]
-    truth = [d['y'] for d in batch]
-    cache = [d['cache'] for d in batch]
+    truth = []
+    cache = []
 
     batch_size = len(drawing)
     #resort
@@ -197,11 +202,13 @@ def null_stroke_collate(batch):
         pack[b, 0:length[b]] = input[b]
     input = torch.from_numpy(pack).float()
 
-    if truth[0] is not []:
+    if batch[0]['y'] != []:
+        truth = [d['y'][0] for d in batch]
         truth = np.array(truth)
         truth = torch.from_numpy(truth).long()
 
-    if cache[0] is not []:
+    if batch[0]['cache'] != []:
+        cache = [d['cache'][0] for d in batch]
         cache = pd.DataFrame(cache)
 
     return input, length, truth, cache

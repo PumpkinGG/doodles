@@ -1,7 +1,7 @@
 ## Kaggle, doodle recongnize
 
-1. First try train on CNN. (MobileNetV2)
-2. Try train on LSTM, do not converge, maybe trouble on data process. (try to figure out)
+1. First try train on CNN. (MobileNetV2) lb = 0.888
+2. Try train on LSTM, modified data procession.
 
 ### need to do
 1. Data augment:
