@@ -15,7 +15,7 @@ BASE_SIZE = 256
 MIN_NUM_PER_FILE = 100000 # 101261
 # Total train example num is: 8160122
 # (not the number of kaggle given data, it's that I processed in shuffle_data.py)
-N_TRAIN = 10000 * NUM_CLASSES
+N_TRAIN = 100000 * NUM_CLASSES
 # Total val example num is: 2039878
 # same as above
 N_VAL = 500 * NUM_CLASSES
@@ -149,15 +149,17 @@ class Points2Strokes(object):
                 'cache': cache}
 
     def point_to_stroke(self, point):
-        point = self.normalise_point(point)
-        #num_point = len(point)
+        #point = self.normalise_point(point)
+        num_point = len(point)
         #stroke =[x,y,dt]
         #--------
-        stroke = point # np.zeros((num_point,3),np.float32)
-        stroke[:,2] = [1] + np.diff(stroke[:,2]).tolist()
-        stroke[:,2] += 1
-        # stroke[0] = [0,0,1]
-        # stroke[1:] = point[1:] - point[:-1]
+        stroke = np.zeros((num_point,3),np.float32)
+        # stroke = point
+        # stroke[:,2] = [1] + np.diff(stroke[:,2]).tolist()
+        # stroke[:,2] += 1
+        stroke[0] = [0,0,1]
+        stroke[1:] = point[1:] - point[:-1]
+        stroke = self.normalise_point(stroke)
 
         return stroke
 
@@ -202,9 +204,10 @@ def null_stroke_collate(batch):
     input = torch.from_numpy(pack).float()
 
     if batch[0]['y'] != []:
-        truth = [d['y'][0] for d in batch]
+        for b in argsort:
+            truth.append(batch[b]['y'][0])
         truth = np.array(truth)
-        truth = torch.from_numpy(truth).long()
+        truth = torch.from_numpy(truth)
 
     if batch[0]['cache'] != []:
         for b in argsort:
@@ -223,7 +226,7 @@ def run_check_stroke():
     iter = 0
     for input, length, truth, _ in dataloader:
 
-        print(input)
+        print(input.size())
         print(length)
         print(truth)
 
@@ -254,4 +257,11 @@ def run_check_img():
 
 if __name__ == '__main__':
     run_check_stroke()
+    # torch.Size([8, 59, 3])
+    # [59 47 32 23 22 20 19 14]
+    # tensor([ 307,  289,   76,  304,  211,  172,  174,  194])
+    # torch.Size([8, 66, 3])
+    # [66 60 60 54 43 26 21 13]
+    # tensor([ 251,   85,  230,  319,   91,   88,  211,  123])
+
     # run_check_img()

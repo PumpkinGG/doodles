@@ -39,12 +39,12 @@ class Lstm_Net(nn.Module):
         super(Lstm_Net,self).__init__()
 
         self.encoder1 = nn.Sequential(
-            nn.Conv1d(3,  48, kernel_size=5, stride=1, padding=2, bias=False),
-            nn.BatchNorm1d(48),
+            nn.Conv1d(3,  32, kernel_size=5, stride=1, padding=2, bias=False),
+            nn.BatchNorm1d(32),
             nn.ReLU(inplace=True),
         )
         self.encoder2 = nn.Sequential(
-            nn.Conv1d(48, 64, kernel_size=5, stride=1, padding=2, bias=False),
+            nn.Conv1d(32, 64, kernel_size=5, stride=1, padding=2, bias=False),
             nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
         )
@@ -56,8 +56,7 @@ class Lstm_Net(nn.Module):
         self.lstm = nn.LSTM(128, 256, num_layers=1, dropout=0, bidirectional=True, batch_first=True)
         #True  #False
 
-        self.logit = nn.Linear(256*2, num_class)
-
+        self.logit = nn.Linear(512, num_class)
 
     def forward(self, x, length):
         batch_size, T, dim = x.shape
@@ -70,10 +69,10 @@ class Lstm_Net(nn.Module):
 
         if 1:
             xx = rnn.pack_padded_sequence(x, length, batch_first=True)
-            yy, (h, c) = self.lstm (xx)
+            yy, (h, c) = self.lstm(xx)
             y, _ = rnn.pad_packed_sequence(yy, batch_first=True)
         else:
-            y, (h, c) = self.lstm (x)
+            y, (h, c) = self.lstm(x)
 
         # print(y.size())
         # print(h.size(), c.size())
@@ -144,7 +143,7 @@ def run_check_net():
 
     # dummy sgd to see if it can converge ...
     optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, net.parameters()),
-                      lr=0.1, momentum=0.9, weight_decay=0.0001)
+                      lr=0.005, momentum=0.9, weight_decay=0.0001)
 
     #optimizer = optim.Adam(net.parameters(), lr=0.001)
 

@@ -50,9 +50,15 @@ def train_cnn(pre_trained = False):
         dataloader = data.DataLoader(dataset, batch_size = 32,
                                         num_workers = 8, collate_fn = utils.null_imgs_collate)
         model.train()
+
         i = 0
         average_precision = 0
         average_loss = 0
+        run_loss = 0
+        run_precision = 0
+        run_top1 = 0
+        run_top3 = 0
+
         optimizer.zero_grad()
         for input, truth, _ in dataloader:
 
@@ -62,18 +68,27 @@ def train_cnn(pre_trained = False):
             logit = model(input)
             loss  = criterion(logit, truth)
             precision, top = nets.metric(logit, truth)
+
             average_precision += precision.item()
             average_loss += loss.item()
+            run_loss += loss.item()
+            run_precision += precision.item()
+            run_top1 += top[0].item()
+            run_top3 += top[-1].item()
 
             loss.backward()
             # torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
             optimizer.step()
             optimizer.zero_grad()
 
-            if i%200==0:
-                print('[%06d] %0.3f | ( %0.3f ) %0.3f  %0.3f'%(
-                    i, loss.item(),precision.item(), top[0].item(),top[-1].item(),
-                ))
+            if i%500 == 499:
+                print('[%06d] %0.3f | ( %0.3f ) %0.3f  %0.3f' % (
+                    i + 1, run_loss / 500, run_precision / 500, run_top1 / 500, run_top3 / 500))
+                run_loss = 0
+                run_precision = 0
+                run_top1 = 0
+                run_top3 = 0
+
             i = i+1
 
         average_precision /= i
@@ -86,9 +101,15 @@ def train_cnn(pre_trained = False):
         dataloader = data.DataLoader(dataset, batch_size = 32,
                                         num_workers = 8, collate_fn = utils.null_imgs_collate)
         model.eval()
+
         i = 0
         average_precision = 0
         average_loss = 0
+        run_loss = 0
+        run_precision = 0
+        run_top1 = 0
+        run_top3 = 0
+
         for input, truth, _ in dataloader:
 
             input = input.to(device)
@@ -101,11 +122,19 @@ def train_cnn(pre_trained = False):
             precision, top = nets.metric(logit, truth)
             average_precision += precision.item()
             average_loss += loss.item()
+            run_loss += loss.item()
+            run_precision += precision.item()
+            run_top1 += top[0].item()
+            run_top3 += top[-1].item()
 
-            if i%200==0:
-                print('[%06d] %0.3f | ( %0.3f ) %0.3f  %0.3f'%(
-                    i, loss.item(), precision.item(), top[0].item(),top[-1].item(),
-                ))
+            if i%500 == 499:
+                print('[%06d] %0.3f | ( %0.3f ) %0.3f  %0.3f' % (
+                    i + 1, run_loss / 500, run_precision / 500, run_top1 / 500, run_top3 / 500))
+                run_loss = 0
+                run_precision = 0
+                run_top1 = 0
+                run_top3 = 0
+
             i = i+1
 
         average_precision /= i
@@ -123,7 +152,7 @@ def train_cnn(pre_trained = False):
 
         # learning rate decay
         for param_group in optimizer.param_groups:
-            param_group['lr'] = param_group['lr'] * 0.95 if param_group['lr'] * 0.95 > 0.0001 else 0.0001
+            param_group['lr'] = param_group['lr'] * 0.9 if param_group['lr'] * 0.9 > 0.0001 else 0.0001
 
         end = dt.datetime.now()
         print('# epoch {} over, valid average_loss is {}, average_precision is {}, cost {}'.format(epoch, average_loss, average_precision, end - start))
