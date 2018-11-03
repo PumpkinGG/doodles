@@ -123,10 +123,10 @@ def train_cnn(pre_trained = False):
 
         # learning rate decay
         for param_group in optimizer.param_groups:
-            param_group['lr'] = param_group['lr'] * 0.9 if param_group['lr'] * 0.9 > 0.0001 else 0.0001
+            param_group['lr'] = param_group['lr'] * 0.95 if param_group['lr'] * 0.95 > 0.0001 else 0.0001
 
         end = dt.datetime.now()
-        print('# epoch {} over, train average_loss is {}, average_precision is {}, cost {}'.format(epoch, average_loss, average_precision, end - start))
+        print('# epoch {} over, valid average_loss is {}, average_precision is {}, cost {}'.format(epoch, average_loss, average_precision, end - start))
 
 if __name__ == '__main__':
     train_cnn(pre_trained = False)

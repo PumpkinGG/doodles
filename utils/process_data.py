@@ -150,10 +150,10 @@ class Points2Strokes(object):
 
     def point_to_stroke(self, point):
         point = self.normalise_point(point)
-        num_point = len(point)
+        #num_point = len(point)
         #stroke =[x,y,dt]
         #--------
-        stroke = np.zeros((num_point,3),np.float32)
+        stroke = point # np.zeros((num_point,3),np.float32)
         stroke[:,2] = [1] + np.diff(stroke[:,2]).tolist()
         stroke[:,2] += 1
         # stroke[0] = [0,0,1]
@@ -191,7 +191,6 @@ def null_stroke_collate(batch):
     input = []
     for b in argsort:
         input.append(drawing[b])
-        cache.append(cache[b])
 
     length = length[argsort]
     length_max = length.max()
@@ -208,7 +207,8 @@ def null_stroke_collate(batch):
         truth = torch.from_numpy(truth).long()
 
     if batch[0]['cache'] != []:
-        cache = [d['cache'][0] for d in batch]
+        for b in argsort:
+            cache.append(batch[b]['cache'][0])
         cache = pd.DataFrame(cache)
 
     return input, length, truth, cache
@@ -218,12 +218,12 @@ def null_stroke_collate(batch):
 def run_check_stroke():
     transform = Points2Strokes(augment = False)
     dataset = simplified_data(mode = 'train', transform = transform)
-    dataloader = data.DataLoader(dataset, batch_size = 16,
+    dataloader = data.DataLoader(dataset, batch_size = 8,
                                     num_workers = 8, collate_fn = null_stroke_collate)
     iter = 0
     for input, length, truth, _ in dataloader:
 
-        print(input.size())
+        print(input)
         print(length)
         print(truth)
 

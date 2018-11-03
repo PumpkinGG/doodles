@@ -15,10 +15,10 @@ def train_lstm(pre_trained = False):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu:0')
     # define network
     model = nets.Lstm_Net(utils.NUM_CLASSES)
-    # optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()),
-    #                         lr=0.01, momentum=0.9, weight_decay=0.0001)
-    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
-                                    lr=0.002)
+    optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()),
+                            lr=0.01, momentum=0.9, weight_decay=0.0001)
+    # optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
+    #                                 lr=0.002)
     criterion = nets.softmax_cross_entropy_criterion
     max_precision = 0.
     # load model params if define pre_trained True
@@ -61,7 +61,7 @@ def train_lstm(pre_trained = False):
             precision, top = nets.metric(logit, truth)
 
             loss.backward()
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
             optimizer.step()
             optimizer.zero_grad()
 
@@ -108,9 +108,9 @@ def train_lstm(pre_trained = False):
                         'precision': average_precision,
                         }, os.path.join(MODEL_PATH, SAVE_MODEL))
 
-        # learning rate decay
-        # for param_group in optimizer.param_groups:
-        #     param_group['lr'] = param_group['lr'] * 0.95 if param_group['lr'] * 0.95 > 0.0001 else 0.0001
+        ## learning rate decay
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = param_group['lr'] * 0.95 if param_group['lr'] * 0.95 > 0.0001 else 0.0001
 
         end = dt.datetime.now()
         print('# epoch {} over, average_precision is {}, cost {}'.format(epoch, average_precision, end - start))
