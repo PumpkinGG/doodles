@@ -15,7 +15,7 @@ BASE_SIZE = 256
 MIN_NUM_PER_FILE = 100000 # 101261
 # Total train example num is: 8160122
 # (not the number of kaggle given data, it's that I processed in shuffle_data.py)
-N_TRAIN = 100000 * NUM_CLASSES
+N_TRAIN = 15000 * NUM_CLASSES
 # Total val example num is: 2039878
 # same as above
 N_VAL = 500 * NUM_CLASSES

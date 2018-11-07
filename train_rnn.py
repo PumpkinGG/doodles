@@ -92,7 +92,7 @@ def train_lstm(pre_trained = False):
 
         average_precision /= i
         average_loss /= i
-        print('# epoch {} over, train average_loss is {}, average_precision is {}.'.format(epoch, average_loss, average_precision))
+        print('# epoch {} over, train average_loss is {:.3f}, average_precision is {:.3f}.'.format(epoch, average_loss, average_precision))
 
         print('# validating........................')
         transform = utils.Points2Strokes(augment = False)
@@ -155,7 +155,7 @@ def train_lstm(pre_trained = False):
             param_group['lr'] = param_group['lr'] * 0.9 if param_group['lr'] * 0.9 > 0.0001 else 0.0001
 
         end = dt.datetime.now()
-        print('# epoch {} over, valid average_loss is {}, average_precision is {}, cost {}'.format(epoch, average_loss, average_precision, end - start))
+        print('# epoch {} over, valid average_loss is {:.3f}, average_precision is {:.3f}, cost {}'.format(epoch, average_loss, average_precision, end - start))
 
 if __name__ == '__main__':
     train_lstm(pre_trained = False)

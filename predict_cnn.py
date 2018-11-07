@@ -48,7 +48,7 @@ def run_test():
 
     start = dt.datetime.now()
     print('# testing......................')
-    transform = utils.Points2Imgs(size = 224)
+    transform = utils.Points2Imgs(size = 256)
     dataset = test_dataset(transform = transform)
     dataloader = data.DataLoader(dataset, batch_size = 32,
                                     num_workers = 8, collate_fn = utils.null_imgs_collate)
@@ -57,8 +57,6 @@ def run_test():
 
     model.eval()
     i = 0
-
-    next(iter(dataloader))
 
     for input, _, cache in dataloader:
 
